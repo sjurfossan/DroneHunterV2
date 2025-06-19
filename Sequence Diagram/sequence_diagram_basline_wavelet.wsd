@@ -1,0 +1,51 @@
+@startuml Full Data Flow
+
+participant User
+participant MainWindow
+participant FrequencyManager
+participant HackRFController
+participant WaveletDenoiser
+participant CFARProcessor
+participant CFARPostProcessor
+participant SpectrumPlot
+participant WaterfallPlotWidget
+
+== User Interaction ==
+User -> MainWindow : Starts application
+User -> MainWindow : Sets VGA gain
+MainWindow -> HackRFController : Apply VGA gain
+
+User -> MainWindow : Sets LNA gain
+MainWindow -> HackRFController : Apply LNA gain
+
+User -> MainWindow : Clicks "Set Frequency Range"
+MainWindow -> FrequencyManager : Request next frequency range
+FrequencyManager -> MainWindow : Return new freq_low, freq_high
+MainWindow -> HackRFController : Restart sweep with new range
+MainWindow -> SpectrumPlot : Update X-axis range and title
+MainWindow -> WaterfallPlotWidget : Update X-axis range
+
+User -> MainWindow : Clicks "Reset Max Hold"
+MainWindow -> HackRFController : Stop
+MainWindow -> SpectrumPlot : Reset max hold array
+
+== HackRF Sweep ==
+MainWindow -> HackRFController : Start sweep
+HackRFController -> MainWindow : Provides raw power values
+
+loop Sweep Loop
+    HackRFController -> MainWindow : Line with raw sweep data
+    CFARPostProcessor -> MainWindow : Fetch averaged power values
+    MainWindow -> WaveletDenoiser : Send raw power values subtracted by averaged power values
+    WaveletDenoiser -> MainWindow : Return denoised values
+    MainWindow -> CFARProcessor : Send denoised values
+    CFARProcessor -> MainWindow : Return detection result (CFAR mask)
+    
+    MainWindow -> SpectrumPlot : Update plot with denoised + max hold
+    MainWindow -> SpectrumPlot : Overlay detection markers
+    MainWindow -> WaterfallPlotWidget : Update waterfall data
+end
+
+MainWindow -> HackRFController : Stop sweep (on close)
+
+@enduml

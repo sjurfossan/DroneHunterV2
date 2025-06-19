@@ -1,0 +1,57 @@
+@startuml SpectrumSweepUpdated
+
+actor User
+
+participant "MainWindow" as MW
+participant "DatasetController" as DC
+participant "SpectrumProcessor" as SP
+participant "CFARProcessor" as CFAR
+participant "CfarPostProcessor" as CPP
+participant "SpectrumPlot" as Plot
+participant "WaterfallPlotWidget" as Waterfall
+
+User -> MW : Launch Application
+MW -> DC : load_dataset("full_sweep_1.csv")
+DC -> DC : parse CSV rows into (freqs, powers)
+MW -> SP : process_data()
+SP --> MW : power_avg
+MW -> DC : get_next()
+DC --> MW : freqs, powers
+
+note right of MW : Initialize plots and max_hold
+
+User -> MW : show() -> init_ui() + start_dataset_stream()
+
+== Every 100ms ==
+
+loop
+    MW -> DC : get_next(target_count=6000)
+    DC --> MW : freqs, powers
+
+    MW -> MW : sort freqs and powers
+    MW -> MW : power_base = powers - power_avg
+
+    MW -> CFAR : apply_cfar(power_base)
+    CFAR --> MW : detection_result (binary mask)
+
+    MW -> Plot : update(freqs, power_base, max_hold)
+
+    MW -> MW : detected_indices = where(detection_result == 1)
+    MW -> CPP : cluster_with_powers(detected_freqs, detected_powers)
+    CPP --> MW : final_freqs, final_powers
+
+    MW -> CPP : count_classification(final_freqs)
+    CPP --> MW : (TP, FP, FN)
+    MW -> MW : Update TP/FP/FN/accuracy_cfar
+
+    MW -> Plot : plot(final_freqs, final_powers)
+
+    MW -> Waterfall : update(power_base)
+
+end
+
+== On Reset Button Click ==
+User -> MW : reset_max_hold()
+MW -> MW : max_hold[:] = -100
+
+@enduml
