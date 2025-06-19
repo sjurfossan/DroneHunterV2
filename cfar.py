@@ -1,7 +1,7 @@
 import numpy as np
 
 class CFARProcessor:
-    def __init__(self, num_guard_cells=200, num_training_cells=400, bias=9):
+    def __init__(self, num_guard_cells=200, num_training_cells=400, bias=5):
         self.num_guard_cells = num_guard_cells
         self.num_training_cells = num_training_cells
         self.bias = bias
